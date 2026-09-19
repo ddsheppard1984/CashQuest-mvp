@@ -139,7 +139,7 @@ function setupBusiness(){
   const input=document.getElementById(id);
   if(input)input.addEventListener("input",updateCampaignPreview);
  });
- form.addEventListener("submit",function(e){
+ form.addEventListener("submit",async function(e){
   e.preventDefault();
   const title=document.getElementById("campaignTitle").value.trim();
   const description=document.getElementById("campaignDescription").value.trim();
