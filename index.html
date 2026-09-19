@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CashQuest — Make spare time pay</title>
+<meta name="description" content="CashQuest connects businesses with people who complete quick, legitimate tasks.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header><div class="logo">⚡ CashQuest</div><nav><button data-tab="quests">Quests</button><button data-tab="business">For Businesses</button><button data-tab="how">How it works</button></nav><button class="login">Sign in</button></header>
+<div class="ad">ADVERTISEMENT<span>Connect your approved ad network here to monetize this placement.</span></div>
+<section id="quests" class="view active">
+<main class="hero"><div><div class="pill">💸 FREE TO JOIN • EARN ON YOUR TERMS</div><h1>Turn spare minutes into <em>real rewards.</em></h1><p>Complete quick, legitimate tasks for businesses. No subscription. No upfront cost.</p><div class="actions"><button class="primary" onclick="document.querySelector('#questList').scrollIntoView({behavior:'smooth'})">Find quests →</button><button class="secondary" onclick="showHow()">See how it works</button></div></div>
+<div class="earn"><div class="circle">$<b id="wallet">0</b></div><small>Your wallet</small><strong>Start earning today</strong><span>Rewards are pending until a task is reviewed.</span></div></main>
+<section class="section"><div class="sectionhead"><div><span class="eyebrow">LIVE OPPORTUNITIES</span><h2>Quests waiting for you</h2></div><button class="filter">☰ Filter</button></div><div id="questList" class="grid"></div></section>
+<div class="stats"><div><b>100%</b><span>Free for users</span></div><div><b>24/7</b><span>Campaigns can run around the clock</span></div><div><b>💰</b><span>Business-funded rewards</span></div><div><b>🔒</b><span>Fraud-aware verification</span></div></div>
+<div class="ad wide">ADVERTISEMENT<span>Your ad could appear here after ad-network approval.</span></div></section>
+<section id="business" class="view"><div class="section business"><span class="eyebrow">FOR BUSINESSES</span><h1>Get real-world data without building a field team.</h1><p>Create a campaign, set a budget, define the proof required, and receive verified submissions.</p><div class="businessgrid"><div class="panel"><h3>Launch a campaign</h3><label>Campaign name<input id="campaignName" placeholder="Verify our display in stores"></label><label>Reward per completion<input id="reward" placeholder="$2.50"></label><label>Budget<input id="budget" placeholder="$250"></label><button class="primary" onclick="launchCampaign()">Create campaign</button></div><div class="panel"><h3>Example economics</h3><div class="money"><span>Business budget</span><b>$250</b></div><div class="money"><span>User rewards</span><b>$175</b></div><div class="money"><span>Platform revenue</span><b>$75</b></div><small>Illustrative only. Actual pricing can vary.</small></div></div></div></section>
+<section id="how" class="view"><div class="section how"><span class="eyebrow">HOW IT WORKS</span><h1>One marketplace. Two sides. Automated revenue.</h1><div class="steps"><div><b>01</b><h3>Businesses post</h3><p>Companies create tasks and fund a campaign.</p></div><div><b>02</b><h3>People complete</h3><p>Users choose quests that fit their time.</p></div><div><b>03</b><h3>Proof is reviewed</h3><p>Submissions are checked before rewards become available.</p></div><div><b>04</b><h3>Platform earns</h3><p>CashQuest can earn a campaign fee plus advertising and business revenue.</p></div></div></div></section>
+<footer><div><div class="logo">⚡ CashQuest</div><p>Make spare time pay.</p></div><div><b>Platform</b><a>Quests</a><a>Businesses</a><a>Safety</a></div><div><b>Business</b><a>Create a campaign</a><a>Pricing</a><a>Analytics</a></div><div><b>Legal</b><a>Terms</a><a>Privacy</a></div></footer>
+<script src="app.js"></script>
+</body></html>
