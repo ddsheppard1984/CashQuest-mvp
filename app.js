@@ -97,7 +97,7 @@ async function initAuth(){
   supabaseClient.auth.onAuthStateChange(function(event,session){
    const user=session&&session.user?session.user:null;
    updateAuthButton(user);
-   if(user)ensureProfile(user);
+   if(user){ensureProfile(user);loadCampaigns();}else loadCampaigns();
   });
  }catch(err){
   console.error("Auth initialization:",err);
@@ -182,6 +182,7 @@ document.addEventListener("DOMContentLoaded",function(){
     if(result.error)throw result.error;
     await ensureProfile(result.data.user);
     updateAuthButton(result.data.user);
+    await loadCampaigns();
     setAuthStatus("Signed in!");
     setTimeout(closeAuth,500);
    }
