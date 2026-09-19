@@ -18,7 +18,16 @@ async function initAuth(){
   supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
   const {data}=await supabaseClient.auth.getUser();
   updateAuthButton(data.user);
-  supabaseClient.auth.onAuthStateChange((_event,session)=>updateAuthButton(session?.user||null));
+  supabaseClient.auth.onAuthStateChange((_event,session)=>{updateAuthButton(session?.user||null);if(session?.user)ensureProfile(session.user)});
+}
+async function ensureProfile(user){
+  if(!supabaseClient||!user)return;
+  const displayName=(user.email||"").split("@")[0]||"CashQuest user";
+  const {error}=await supabaseClient.from("profiles").upsert(
+    {id:user.id,display_name:displayName,role:"worker"},
+    {onConflict:"id"}
+  );
+  if(error)console.error("Profile setup:",error.message);
 }
 async function updateAuthButton(userOverride){
   let user=userOverride;
@@ -41,7 +50,7 @@ if(form)form.addEventListener("submit",async e=>{
       setAuthStatus(data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
     }else{
       const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
-      if(error)throw error;setAuthStatus("Signed in!");updateAuthButton(data.user);setTimeout(closeAuth,700);
+      if(error)throw error;setAuthStatus("Signed in!");updateAuthButton(data.user);ensureProfile(data.user);setTimeout(closeAuth,700);
     }
   }catch(err){setAuthStatus(err.message||"Something went wrong.")}finally{document.getElementById("authSubmit").disabled=false}
 });
