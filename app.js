@@ -110,24 +110,18 @@ function escapeHtml(value){
  });
 }
 let campaignDrafts=[];
-try{campaignDrafts=JSON.parse(localStorage.getItem("cashquest_campaign_drafts")||"[]");}catch(e){campaignDrafts=[];}
-
-function renderCampaigns(){
- const el=document.getElementById("campaignList");
- if(!el)return;
- if(!campaignDrafts.length){
-  el.innerHTML='<article class="card"><h3>No campaigns yet</h3><p class="biz">Create a draft above. Live campaign funding and worker matching come later.</p></article>';
-  return;
- }
- el.innerHTML=campaignDrafts.map(function(q,index){
-  return '<article class="card"><div class="cardtop"><span class="icon">📋</span><span class="tag">DRAFT</span></div><h3>'+escapeHtml(q.title)+'</h3><p class="biz">'+escapeHtml(q.description)+'</p><div class="meta"><span>'+q.workers+' workers</span><strong>$'+Number(q.reward).toFixed(2)+'</strong></div><p class="biz">Worker budget: $'+(Number(q.reward)*Number(q.workers)).toFixed(2)+'</p><button class="example" onclick="deleteCampaign('+index+')">Delete draft</button></article>';
- }).join("");
+async function loadCampaigns(){
+ const el=document.getElementById("campaignList"); if(!el)return;
+ if(!supabaseClient){el.innerHTML='<article class="card"><h3>Connect to your account</h3><p class="biz">Sign in to load your campaigns.</p></article>';return;}
+ const {data:userData}=await supabaseClient.auth.getUser(); const user=userData?.user;
+ if(!user){el.innerHTML='<article class="card"><h3>Sign in required</h3><p class="biz">Sign in to create and manage campaigns.</p></article>';return;}
+ const {data,error}=await supabaseClient.from("campaigns").select("*").order("created_at",{ascending:false});
+ if(error){console.error(error);el.innerHTML='<article class="card"><h3>Could not load campaigns</h3><p class="biz">'+escapeHtml(error.message)+'</p></article>';return;}
+ campaignDrafts=data||[];
+ if(!campaignDrafts.length){el.innerHTML='<article class="card"><h3>No campaigns yet</h3><p class="biz">Create a campaign draft above. Live funding and worker matching come later.</p></article>';return;}
+ el.innerHTML=campaignDrafts.map(function(q){return '<article class="card"><div class="cardtop"><span class="icon">📋</span><span class="tag">'+escapeHtml(q.status.toUpperCase())+'</span></div><h3>'+escapeHtml(q.title)+'</h3><p class="biz">'+escapeHtml(q.description)+'</p><div class="meta"><span>'+q.workers_needed+' workers</span><strong>$'+(Number(q.reward_cents)/100).toFixed(2)+'</strong></div><p class="biz">Worker budget: $'+(Number(q.reward_cents)*Number(q.workers_needed)/100).toFixed(2)+'</p><button class="example" onclick="deleteCampaign('+q.id+')">Delete draft</button></article>';}).join("");
 }
-function deleteCampaign(index){
- campaignDrafts.splice(index,1);
- localStorage.setItem("cashquest_campaign_drafts",JSON.stringify(campaignDrafts));
- renderCampaigns();
-}
+async function deleteCampaign(id){if(!supabaseClient)return;const {error}=await supabaseClient.from("campaigns").delete().eq("id",id);if(error){alert(error.message);return;}loadCampaigns();}
 function updateCampaignPreview(){
  const reward=Number((document.getElementById("campaignReward")||{}).value||0);
  const workers=Number((document.getElementById("campaignWorkers")||{}).value||0);
@@ -151,14 +145,16 @@ function setupBusiness(){
   const description=document.getElementById("campaignDescription").value.trim();
   const reward=Number(document.getElementById("campaignReward").value);
   const workers=Number(document.getElementById("campaignWorkers").value);
-  campaignDrafts.unshift({title:title,description:description,reward:reward,workers:workers,createdAt:new Date().toISOString()});
-  localStorage.setItem("cashquest_campaign_drafts",JSON.stringify(campaignDrafts));
-  document.getElementById("campaignStatus").textContent="Draft saved on this device. Payment and publishing are not live yet.";
+  const {data:userData}=await supabaseClient.auth.getUser();
+  if(!userData?.user){document.getElementById("campaignStatus").textContent="Please sign in before saving a campaign.";return;}
+  const {error}=await supabaseClient.from("campaigns").insert({title:title,description:description,reward_cents:Math.round(reward*100),workers_needed:workers,status:"draft",created_by:userData.user.id});
+  if(error){document.getElementById("campaignStatus").textContent=error.message;return;}
+  document.getElementById("campaignStatus").textContent="Campaign draft saved to CashQuest.";
   form.reset();
   updateCampaignPreview();
-  renderCampaigns();
+  loadCampaigns();
  });
- renderCampaigns();
+ loadCampaigns();
  updateCampaignPreview();
 }
 
