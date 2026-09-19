@@ -47,5 +47,7 @@ if(form)form.addEventListener("submit",async e=>{
   }catch(err){setAuthStatus(err.message||"Something went wrong.")}finally{document.getElementById("authSubmit").disabled=false}
 });
 render();
+const authButton=document.getElementById("authButton");
+if(authButton)authButton.addEventListener("click",openAuth);
 updateAuthButton();
 initAuth();
