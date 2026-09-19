@@ -4,208 +4,198 @@ const CASHQUEST_SITE_URL="https://cash-quest-mvp.vercel.app/";
 let supabaseClient=null;
 let authMode="signup";
 
-function openAuth(){const m=document.getElementById("authModal");if(!m)return;m.classList.add("open");m.setAttribute("aria-hidden","false");setAuthStatus("")}
-function closeAuth(){const m=document.getElementById("authModal");if(!m)return;m.classList.remove("open");m.setAttribute("aria-hidden","true")}
-function setAuthStatus(msg){const e=document.getElementById("authStatus");if(e)e.textContent=msg}
-function toggleAuthMode(){authMode=authMode==="signup"?"signin":"signup";document.getElementById("authTitle").textContent=authMode==="signup"?"Create your account":"Welcome back";document.getElementById("authNote").textContent=authMode==="signup"?"Join CashQuest to prepare for the live marketplace.":"Sign in to your CashQuest account.";document.getElementById("authSubmit").textContent=authMode==="signup"?"Create account":"Sign in";document.getElementById("authSwitch").textContent=authMode==="signup"?"Already have an account? Sign in":"Need an account? Create one";document.getElementById("authPassword").setAttribute("autocomplete",authMode==="signup"?"new-password":"current-password");setAuthStatus("")}
+const quests=[
+ {title:"Check a store display",biz:"Example business",reward:"$3.00",time:"3 min",icon:"📸",tag:"Nearby"},
+ {title:"Answer a short survey",biz:"Example business",reward:"$1.25",time:"1 min",icon:"📝",tag:"Online"},
+ {title:"Verify business hours",biz:"Example business",reward:"$1.75",time:"2 min",icon:"🕐",tag:"Nearby"},
+ {title:"Find a product on a shelf",biz:"Example business",reward:"$4.00",time:"5 min",icon:"🛒",tag:"Nearby"}
+];
 
-const quests=[{title:"Check a store display",biz:"Example business",reward:"$3.00",time:"3 min",icon:"📸",tag:"Nearby"},{title:"Answer a short survey",biz:"Example business",reward:"$1.25",time:"1 min",icon:"📝",tag:"Online"},{title:"Verify business hours",biz:"Example business",reward:"$1.75",time:"2 min",icon:"🕐",tag:"Nearby"},{title:"Find a product on a shelf",biz:"Example business",reward:"$4.00",time:"5 min",icon:"🛒",tag:"Nearby"}];
-function render(){document.getElementById("questList").innerHTML=quests.map(q=>`<article class="card"><div class="cardtop"><span class="icon">${q.icon}</span><span class="tag">${q.tag}</span></div><h3>${q.title}</h3><p class="biz">${q.biz}</p><div class="meta"><span>⏱ ${q.time}</span><strong>${q.reward}</strong></div><button class="example" onclick="alert('This is an example quest. Real paid quests will appear after CashQuest launches its account, payment and verification systems.')">Example — not claimable yet</button></article>`).join("")}
-let campaignDrafts=JSON.parse(localStorage.getItem("cashquest_campaign_drafts")||"[]");
+function openAuth(){
+ const m=document.getElementById("authModal");
+ if(!m)return;
+ m.classList.add("open");
+ m.setAttribute("aria-hidden","false");
+}
+function closeAuth(){
+ const m=document.getElementById("authModal");
+ if(!m)return;
+ m.classList.remove("open");
+ m.setAttribute("aria-hidden","true");
+}
+function setAuthStatus(msg){
+ const e=document.getElementById("authStatus");
+ if(e)e.textContent=msg||"";
+}
+function toggleAuthMode(){
+ authMode=authMode==="signup"?"signin":"signup";
+ document.getElementById("authTitle").textContent=authMode==="signup"?"Create your account":"Welcome back";
+ document.getElementById("authNote").textContent=authMode==="signup"?"Join CashQuest to prepare for the live marketplace.":"Sign in to your CashQuest account.";
+ document.getElementById("authSubmit").textContent=authMode==="signup"?"Create account":"Sign in";
+ document.getElementById("authSwitch").textContent=authMode==="signup"?"Already have an account? Sign in":"Need an account? Create one";
+ document.getElementById("authPassword").setAttribute("autocomplete",authMode==="signup"?"new-password":"current-password");
+ setAuthStatus("");
+}
+
+function showTab(id){
+ document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+ const view=document.getElementById(id);
+ if(view)view.classList.add("active");
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function render(){
+ const list=document.getElementById("questList");
+ if(!list)return;
+ list.innerHTML=quests.map(q=>'<article class="card"><div class="cardtop"><span class="icon">'+q.icon+'</span><span class="tag">'+q.tag+'</span></div><h3>'+q.title+'</h3><p class="biz">'+q.biz+'</p><div class="meta"><span>⏱ '+q.time+'</span><strong>'+q.reward+'</strong></div><button class="example" onclick="alert(\'This is an example quest. Real paid quests will appear after CashQuest launches its account, payment and verification systems.\')">Example — not claimable yet</button></article>').join("");
+}
+
+function openAccount(user){
+ showTab("account");
+ const email=user&&user.email?user.email:"Signed-in user";
+ const e=document.getElementById("accountEmail");
+ const n=document.getElementById("accountName");
+ if(e)e.textContent=email;
+ if(n)n.textContent=email.split("@")[0]||"CashQuest user";
+}
+async function signOutUser(){
+ if(supabaseClient)await supabaseClient.auth.signOut();
+ showTab("quests");
+ updateAuthButton(null);
+}
+
+async function ensureProfile(user){
+ if(!supabaseClient||!user)return;
+ const displayName=(user.email||"").split("@")[0]||"CashQuest user";
+ const result=await supabaseClient.from("profiles").upsert(
+  {id:user.id,display_name:displayName,role:"worker"},
+  {onConflict:"id"}
+ );
+ if(result.error)console.error("Profile setup:",result.error.message);
+}
+
+async function updateAuthButton(user){
+ const b=document.getElementById("authButton");
+ if(!b)return;
+ if(user){
+  b.textContent="Account";
+  b.onclick=function(){openAccount(user);};
+ }else{
+  b.textContent="Sign in / Join";
+  b.onclick=openAuth;
+ }
+}
+
+async function initAuth(){
+ if(!window.supabase){
+  console.error("Supabase library did not load");
+  return;
+ }
+ try{
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+  const result=await supabaseClient.auth.getUser();
+  await updateAuthButton(result.data.user||null);
+  supabaseClient.auth.onAuthStateChange(function(event,session){
+   const user=session&&session.user?session.user:null;
+   updateAuthButton(user);
+   if(user)ensureProfile(user);
+  });
+ }catch(err){
+  console.error("Auth initialization:",err);
+ }
+}
+
+function escapeHtml(value){
+ return String(value).replace(/[&<>"']/g,function(ch){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+ });
+}
+let campaignDrafts=[];
+try{campaignDrafts=JSON.parse(localStorage.getItem("cashquest_campaign_drafts")||"[]");}catch(e){campaignDrafts=[];}
+
 function renderCampaigns(){
- const el=document.getElementById("campaignList"); if(!el)return;
- if(!campaignDrafts.length){el.innerHTML='<article class="card"><h3>No campaigns yet</h3><p class="biz">Create a draft above. Live campaign funding and worker matching come later.</p></article>';return}
- el.innerHTML=campaignDrafts.map((q,idx)=>'<article class="card"><div class="cardtop"><span class="icon">📋</span><span class="tag">DRAFT</span></div><h3>'+escapeHtml(q.title)+'</h3><p class="biz">'+escapeHtml(q.description)+'</p><div class="meta"><span>'+q.workers+' workers</span><strong>document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");window.scrollTo({top:0,behavior:"smooth"})}
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-
-async function initAuth(){
-  if(!window.supabase){console.error("Supabase library did not load");return}
-  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-  const {data}=await supabaseClient.auth.getUser();
-  updateAuthButton(data.user);
-  supabaseClient.auth.onAuthStateChange((_event,session)=>{updateAuthButton(session?.user||null);if(session?.user)ensureProfile(session.user)});
+ const el=document.getElementById("campaignList");
+ if(!el)return;
+ if(!campaignDrafts.length){
+  el.innerHTML='<article class="card"><h3>No campaigns yet</h3><p class="biz">Create a draft above. Live campaign funding and worker matching come later.</p></article>';
+  return;
+ }
+ el.innerHTML=campaignDrafts.map(function(q,index){
+  return '<article class="card"><div class="cardtop"><span class="icon">📋</span><span class="tag">DRAFT</span></div><h3>'+escapeHtml(q.title)+'</h3><p class="biz">'+escapeHtml(q.description)+'</p><div class="meta"><span>'+q.workers+' workers</span><strong>$'+Number(q.reward).toFixed(2)+'</strong></div><p class="biz">Worker budget: $'+(Number(q.reward)*Number(q.workers)).toFixed(2)+'</p><button class="example" onclick="deleteCampaign('+index+')">Delete draft</button></article>';
+ }).join("");
 }
-async function ensureProfile(user){
-  if(!supabaseClient||!user)return;
-  const displayName=(user.email||"").split("@")[0]||"CashQuest user";
-  const {error}=await supabaseClient.from("profiles").upsert(
-    {id:user.id,display_name:displayName,role:"worker"},
-    {onConflict:"id"}
-  );
-  if(error)console.error("Profile setup:",error.message);
+function deleteCampaign(index){
+ campaignDrafts.splice(index,1);
+ localStorage.setItem("cashquest_campaign_drafts",JSON.stringify(campaignDrafts));
+ renderCampaigns();
 }
-function openAccount(user){
-  showTab("account");
-  const e=document.getElementById("accountEmail");
-  const n=document.getElementById("accountName");
-  if(e)e.textContent=user?.email||"Signed-in user";
-  if(n)n.textContent=(user?.email||"CashQuest user").split("@")[0];
-}
-async function signOutUser(){
-  if(!supabaseClient)return;
-  await supabaseClient.auth.signOut();
-  showTab("quests");
-  updateAuthButton(null);
-}
-async function updateAuthButton(userOverride){
-  let user=userOverride;
-  if(user===undefined && supabaseClient){const r=await supabaseClient.auth.getUser();user=r.data.user}
-  const b=document.getElementById("authButton");if(!b)return;
-  if(user){b.textContent="Account";b.onclick=()=>openAccount(user)}
-  else{b.textContent="Sign in / Join";b.onclick=openAuth}
-}
-
-const form=document.getElementById("authForm");
-if(form)form.addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(!supabaseClient){setAuthStatus("The account service is still loading. Please wait a moment and try again.");await initAuth();if(!supabaseClient)return}
-  const email=document.getElementById("authEmail").value.trim(),password=document.getElementById("authPassword").value;
-  setAuthStatus("Working…");document.getElementById("authSubmit").disabled=true;
-  try{
-    if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:CASHQUEST_SITE_URL}});
-      if(error)throw error;
-      setAuthStatus(data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
-    }else{
-      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
-      if(error)throw error;setAuthStatus("Signed in!");updateAuthButton(data.user);ensureProfile(data.user);setTimeout(closeAuth,700);
-    }
-  }catch(err){setAuthStatus(err.message||"Something went wrong.")}finally{document.getElementById("authSubmit").disabled=false}
-});
-render();
-setupBusiness();
-updateAuthButton();
-initAuth();+Number(q.reward).toFixed(2)+'</strong></div><p class="biz">Worker budget: document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");window.scrollTo({top:0,behavior:"smooth"})}
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-
-async function initAuth(){
-  if(!window.supabase){console.error("Supabase library did not load");return}
-  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-  const {data}=await supabaseClient.auth.getUser();
-  updateAuthButton(data.user);
-  supabaseClient.auth.onAuthStateChange((_event,session)=>{updateAuthButton(session?.user||null);if(session?.user)ensureProfile(session.user)});
-}
-async function ensureProfile(user){
-  if(!supabaseClient||!user)return;
-  const displayName=(user.email||"").split("@")[0]||"CashQuest user";
-  const {error}=await supabaseClient.from("profiles").upsert(
-    {id:user.id,display_name:displayName,role:"worker"},
-    {onConflict:"id"}
-  );
-  if(error)console.error("Profile setup:",error.message);
-}
-function openAccount(user){
-  showTab("account");
-  const e=document.getElementById("accountEmail");
-  const n=document.getElementById("accountName");
-  if(e)e.textContent=user?.email||"Signed-in user";
-  if(n)n.textContent=(user?.email||"CashQuest user").split("@")[0];
-}
-async function signOutUser(){
-  if(!supabaseClient)return;
-  await supabaseClient.auth.signOut();
-  showTab("quests");
-  updateAuthButton(null);
-}
-async function updateAuthButton(userOverride){
-  let user=userOverride;
-  if(user===undefined && supabaseClient){const r=await supabaseClient.auth.getUser();user=r.data.user}
-  const b=document.getElementById("authButton");if(!b)return;
-  if(user){b.textContent="Account";b.onclick=()=>openAccount(user)}
-  else{b.textContent="Sign in / Join";b.onclick=openAuth}
-}
-
-const form=document.getElementById("authForm");
-if(form)form.addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(!supabaseClient){setAuthStatus("The account service is still loading. Please wait a moment and try again.");await initAuth();if(!supabaseClient)return}
-  const email=document.getElementById("authEmail").value.trim(),password=document.getElementById("authPassword").value;
-  setAuthStatus("Working…");document.getElementById("authSubmit").disabled=true;
-  try{
-    if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:CASHQUEST_SITE_URL}});
-      if(error)throw error;
-      setAuthStatus(data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
-    }else{
-      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
-      if(error)throw error;setAuthStatus("Signed in!");updateAuthButton(data.user);ensureProfile(data.user);setTimeout(closeAuth,700);
-    }
-  }catch(err){setAuthStatus(err.message||"Something went wrong.")}finally{document.getElementById("authSubmit").disabled=false}
-});
-render();
-updateAuthButton();
-initAuth();+(Number(q.reward)*Number(q.workers)).toFixed(2)+'</p><button class="example" onclick="deleteCampaign('+idx+')">Delete draft</button></article>').join("");
-}
-function escapeHtml(v){return String(v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-function deleteCampaign(i){campaignDrafts.splice(i,1);localStorage.setItem("cashquest_campaign_drafts",JSON.stringify(campaignDrafts));renderCampaigns()}
 function updateCampaignPreview(){
- const reward=Number(document.getElementById("campaignReward")?.value||0),workers=Number(document.getElementById("campaignWorkers")?.value||0);
- const r=document.getElementById("campaignRewardPreview"),w=document.getElementById("campaignWorkersPreview"),b=document.getElementById("campaignBudgetPreview");
- if(r)r.textContent="$"+reward.toFixed(2);if(w)w.textContent=workers.toLocaleString();if(b)b.textContent="$"+(reward*workers).toFixed(2);
+ const reward=Number((document.getElementById("campaignReward")||{}).value||0);
+ const workers=Number((document.getElementById("campaignWorkers")||{}).value||0);
+ const r=document.getElementById("campaignRewardPreview");
+ const w=document.getElementById("campaignWorkersPreview");
+ const b=document.getElementById("campaignBudgetPreview");
+ if(r)r.textContent="$"+reward.toFixed(2);
+ if(w)w.textContent=workers.toLocaleString();
+ if(b)b.textContent="$"+(reward*workers).toFixed(2);
 }
 function setupBusiness(){
- const form=document.getElementById("campaignForm");if(!form)return;
- ["campaignReward","campaignWorkers"].forEach(id=>document.getElementById(id)?.addEventListener("input",updateCampaignPreview));
- form.addEventListener("submit",e=>{e.preventDefault();const title=document.getElementById("campaignTitle").value.trim(),description=document.getElementById("campaignDescription").value.trim(),reward=Number(document.getElementById("campaignReward").value),workers=Number(document.getElementById("campaignWorkers").value);campaignDrafts.unshift({title,description,reward,workers,createdAt:new Date().toISOString()});localStorage.setItem("cashquest_campaign_drafts",JSON.stringify(campaignDrafts));document.getElementById("campaignStatus").textContent="Draft saved on this device. Payment and publishing are not live yet.";form.reset();updateCampaignPreview();renderCampaigns()});
- renderCampaigns();updateCampaignPreview();
-}
-function showTab(id){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");window.scrollTo({top:0,behavior:"smooth"})}
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-
-async function initAuth(){
-  if(!window.supabase){console.error("Supabase library did not load");return}
-  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-  const {data}=await supabaseClient.auth.getUser();
-  updateAuthButton(data.user);
-  supabaseClient.auth.onAuthStateChange((_event,session)=>{updateAuthButton(session?.user||null);if(session?.user)ensureProfile(session.user)});
-}
-async function ensureProfile(user){
-  if(!supabaseClient||!user)return;
-  const displayName=(user.email||"").split("@")[0]||"CashQuest user";
-  const {error}=await supabaseClient.from("profiles").upsert(
-    {id:user.id,display_name:displayName,role:"worker"},
-    {onConflict:"id"}
-  );
-  if(error)console.error("Profile setup:",error.message);
-}
-function openAccount(user){
-  showTab("account");
-  const e=document.getElementById("accountEmail");
-  const n=document.getElementById("accountName");
-  if(e)e.textContent=user?.email||"Signed-in user";
-  if(n)n.textContent=(user?.email||"CashQuest user").split("@")[0];
-}
-async function signOutUser(){
-  if(!supabaseClient)return;
-  await supabaseClient.auth.signOut();
-  showTab("quests");
-  updateAuthButton(null);
-}
-async function updateAuthButton(userOverride){
-  let user=userOverride;
-  if(user===undefined && supabaseClient){const r=await supabaseClient.auth.getUser();user=r.data.user}
-  const b=document.getElementById("authButton");if(!b)return;
-  if(user){b.textContent="Account";b.onclick=()=>openAccount(user)}
-  else{b.textContent="Sign in / Join";b.onclick=openAuth}
-}
-
-const form=document.getElementById("authForm");
-if(form)form.addEventListener("submit",async e=>{
+ const form=document.getElementById("campaignForm");
+ if(!form)return;
+ ["campaignReward","campaignWorkers"].forEach(function(id){
+  const input=document.getElementById(id);
+  if(input)input.addEventListener("input",updateCampaignPreview);
+ });
+ form.addEventListener("submit",function(e){
   e.preventDefault();
-  if(!supabaseClient){setAuthStatus("The account service is still loading. Please wait a moment and try again.");await initAuth();if(!supabaseClient)return}
-  const email=document.getElementById("authEmail").value.trim(),password=document.getElementById("authPassword").value;
-  setAuthStatus("Working…");document.getElementById("authSubmit").disabled=true;
+  const title=document.getElementById("campaignTitle").value.trim();
+  const description=document.getElementById("campaignDescription").value.trim();
+  const reward=Number(document.getElementById("campaignReward").value);
+  const workers=Number(document.getElementById("campaignWorkers").value);
+  campaignDrafts.unshift({title:title,description:description,reward:reward,workers:workers,createdAt:new Date().toISOString()});
+  localStorage.setItem("cashquest_campaign_drafts",JSON.stringify(campaignDrafts));
+  document.getElementById("campaignStatus").textContent="Draft saved on this device. Payment and publishing are not live yet.";
+  form.reset();
+  updateCampaignPreview();
+  renderCampaigns();
+ });
+ renderCampaigns();
+ updateCampaignPreview();
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+ document.querySelectorAll("[data-tab]").forEach(function(button){
+  button.addEventListener("click",function(){showTab(button.dataset.tab);});
+ });
+ const form=document.getElementById("authForm");
+ if(form)form.addEventListener("submit",async function(e){
+  e.preventDefault();
+  if(!supabaseClient)await initAuth();
+  if(!supabaseClient){setAuthStatus("Account service is unavailable. Please refresh and try again.");return;}
+  const email=document.getElementById("authEmail").value.trim();
+  const password=document.getElementById("authPassword").value;
+  const submit=document.getElementById("authSubmit");
+  setAuthStatus("Working…");
+  submit.disabled=true;
   try{
-    if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:CASHQUEST_SITE_URL}});
-      if(error)throw error;
-      setAuthStatus(data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
-    }else{
-      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
-      if(error)throw error;setAuthStatus("Signed in!");updateAuthButton(data.user);ensureProfile(data.user);setTimeout(closeAuth,700);
-    }
-  }catch(err){setAuthStatus(err.message||"Something went wrong.")}finally{document.getElementById("authSubmit").disabled=false}
+   if(authMode==="signup"){
+    const result=await supabaseClient.auth.signUp({email:email,password:password,options:{emailRedirectTo:CASHQUEST_SITE_URL}});
+    if(result.error)throw result.error;
+    setAuthStatus(result.data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
+   }else{
+    const result=await supabaseClient.auth.signInWithPassword({email:email,password:password});
+    if(result.error)throw result.error;
+    await ensureProfile(result.data.user);
+    updateAuthButton(result.data.user);
+    setAuthStatus("Signed in!");
+    setTimeout(closeAuth,500);
+   }
+  }catch(err){
+   setAuthStatus(err&&err.message?err.message:"Something went wrong.");
+  }finally{
+   submit.disabled=false;
+  }
+ });
+ render();
+ setupBusiness();
+ initAuth();
 });
-render();
-updateAuthButton();
-initAuth();
