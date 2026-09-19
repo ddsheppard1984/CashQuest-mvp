@@ -1,5 +1,6 @@
 const SUPABASE_URL="https://nfwesibtnvliuiqxabfp.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_2PGpbqPSgnXYDEB74EEzCg_fNG-ZHt1";
+const CASHQUEST_SITE_URL="https://cash-quest-mvp.vercel.app/";
 let supabaseClient=null;
 let authMode="signup";
 
@@ -45,7 +46,7 @@ if(form)form.addEventListener("submit",async e=>{
   setAuthStatus("Working…");document.getElementById("authSubmit").disabled=true;
   try{
     if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password});
+      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:CASHQUEST_SITE_URL}});
       if(error)throw error;
       setAuthStatus(data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
     }else{
