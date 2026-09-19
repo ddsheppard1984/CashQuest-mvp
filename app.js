@@ -30,6 +30,19 @@ async function ensureProfile(user){
   );
   if(error)console.error("Profile setup:",error.message);
 }
+function openAccount(user){
+  showTab("account");
+  const e=document.getElementById("accountEmail");
+  const n=document.getElementById("accountName");
+  if(e)e.textContent=user?.email||"Signed-in user";
+  if(n)n.textContent=(user?.email||"CashQuest user").split("@")[0];
+}
+async function signOutUser(){
+  if(!supabaseClient)return;
+  await supabaseClient.auth.signOut();
+  showTab("quests");
+  updateAuthButton(null);
+}
 async function updateAuthButton(userOverride){
   let user=userOverride;
   if(user===undefined && supabaseClient){const r=await supabaseClient.auth.getUser();user=r.data.user}
@@ -56,7 +69,5 @@ if(form)form.addEventListener("submit",async e=>{
   }catch(err){setAuthStatus(err.message||"Something went wrong.")}finally{document.getElementById("authSubmit").disabled=false}
 });
 render();
-const authButton=document.getElementById("authButton");
-if(authButton)authButton.addEventListener("click",openAuth);
 updateAuthButton();
 initAuth();
