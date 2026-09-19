@@ -38,7 +38,6 @@ if(form)form.addEventListener("submit",async e=>{
     if(authMode==="signup"){
       const {data,error}=await supabaseClient.auth.signUp({email,password});
       if(error)throw error;
-      if(data.user){const p=await supabaseClient.from("profiles").upsert({id:data.user.id,display_name:email.split("@")[0],role:"worker"},{onConflict:"id"});if(p.error)throw p.error}
       setAuthStatus(data.session?"Account created and signed in.":"Account created. Check your email to confirm your address, then sign in.");
     }else{
       const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
