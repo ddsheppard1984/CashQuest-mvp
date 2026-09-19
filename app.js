@@ -34,7 +34,7 @@ async function updateAuthButton(userOverride){
   let user=userOverride;
   if(user===undefined && supabaseClient){const r=await supabaseClient.auth.getUser();user=r.data.user}
   const b=document.getElementById("authButton");if(!b)return;
-  if(user){b.textContent="Account";b.onclick=()=>alert("Signed in as "+user.email+" — account dashboard coming next.")}
+  if(user){b.textContent="Account";b.onclick=()=>openAccount(user)}
   else{b.textContent="Sign in / Join";b.onclick=openAuth}
 }
 
